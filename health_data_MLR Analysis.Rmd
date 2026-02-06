@@ -11,14 +11,15 @@ knitr::opts_chunk$set(echo = TRUE)
 
 #library
 
-```{r}
+```{r library, include=FALSE}
 library(tidyverse)
 library(haven)
+library(car)
 ```
 
 #import data
 
-```{r}
+```{r, include=FALSE}
 hcris <- read_dta(file = "C:/Users/Lenovo/Downloads/hcris (1).dta")
 
 hcahps <- read_dta(file = "C:/Users/Lenovo/Downloads/hcahps (1).dta")
@@ -30,46 +31,46 @@ mort <- read_dta(file = "C:/Users/Lenovo/Downloads/mortreadm.dta")
 
 #data selection
 
-```{r hcris}
+```{r hcris, include=FALSE}
 hcris <- hcris %>% 
   select(pn, year, ccr_wtd) 
 
 
 ```
 
-```{r hcahps}
+```{r hcahps, include=FALSE}
 hcahps <- hcahps %>% 
   select(pn, year, overall_score) 
 
 
 ```
 
-```{r mort}
+```{r mort, include=FALSE}
 mort <- mort %>% 
   select(pn, year, pn_mort_rate)
 ```
 
-```{r poc}
+```{r poc, include=FALSE}
 poc <- poc %>% 
   select(pn, year, ami1_share, ed1_minutes, ed2_minutes, op22_share)
 ```
 
 ##joining data
 
-```{r join hchaps and hcris}
+```{r join hchaps and hcris, include=FALSE}
 df_h <- inner_join(hcahps, hcris, by = c("pn","year")) %>%
   filter(!is.na(overall_score) & !is.na(ccr_wtd))
 
 
 ```
 
-```{r join mort and poc}
+```{r join mort and poc, include=FALSE}
 
 df_m <- full_join(mort, poc, by = c("pn","year"))
 
 ```
 
-```{r complete dataset}
+```{r complete dataset, include=FALSE}
 
 df <- full_join(df_h,df_m, by = c("pn","year"))
 
@@ -89,8 +90,91 @@ df1 <- df %>%
 view(df1)
 ```
 
-```{r remove orig datasets to save space}
+```{r remove orig datasets to save space, include=FALSE}
 
-rm(df_h, df_m, hcahps, hcris, mort, poc)
+rm(df_h, df_m, hcahps, hcris, mort, poc, df)
 
 ```
+
+# statistical analysis
+
+## Is there a relationship between a hospital's overall score based on cost charge ratio, time from arrival, time from departure, and patients being seen?
+
+```{r multiple linear regression model (MLR)}
+
+model <- lm(data = df1, overall_score ~ ccr_wtd + ed1_minutes + ed2_minutes + op22_share)
+
+summary(model)
+
+```
+
+Interesting! The output signifies that the entire model is statistically significant (p < 0.05). And, this model explains around 15% of variance in the overall score. 
+
+This is ChatGPT's summary:
+
+**Holding other factors constant, higher ccr_wtd is associated with higher overall scores, more time in ed1 is associated with lower scores, more time in ed2 is associated with slightly higher scores, and higher op22_share is associated with substantially lower overall scores. The model is statistically strong but explains a modest portion of overall variation. **
+
+```{r diagnostic plots}
+
+par(mfrow = c(2, 2))
+plot(model)
+
+
+```
+
+
+LINE Assumptions
+1. Linearity = mild-non linearity. Cloud is good.
+
+2. Independence = We can assume based on how the data was collected, each hospital observation does not affect other hospital's observations
+
+3. Normality = QQ plot looks linear and most points fit the line. However, the left-tail looks skewed. Meaning that is not normally distributed. But I also have 13,000+ observations so I think this should be fine.
+
+4. Equal variance / Homoscedascity = There is a U shaped line trend meaning that this indicates heteroscedasticity. Meaning that this can bias standard error.
+
+5. Cook's distance (Residuals vs Leverage) = There are some influential observations but nothing crazy bc the cloud is mainly to the left. I think it's bc I have a huge n. 
+
+
+```{r multicollinearity}
+vif(model)
+```
+
+VIF or Variance Inflation Factor tells me how much variance is inflated bc of predictor that is correlated. Any VIF > 10 is usually super bad. VIF > 4 is moderately bad.
+
+Therefore, ccr_wtd and op22 are good. But I should be careful about ed1 and ed2.
+
+
+## What happens if we hold op22 constant <-- I use chatGPT here lol
+
+```{r prediction}
+
+# Create a grid for ccr_wtd
+newdata <- data.frame(
+  ccr_wtd = seq(min(df1$ccr_wtd), max(df1$ccr_wtd), length.out = 100),
+  ed1_minutes = mean(df1$ed1_minutes),
+  ed2_minutes = mean(df1$ed2_minutes),
+  op22_share = mean(df1$op22_share)
+)
+
+# Add predicted values
+newdata$overall_pred <- predict(model, newdata)
+
+
+```
+
+```{r prediction plot}
+
+ggplot(df1, aes(x = ccr_wtd, y = overall_score)) +
+  geom_point(alpha = 0.5) +
+  geom_line(data = newdata, aes(x = ccr_wtd, y = overall_pred), color = "blue", linewidth = 1.2) +
+  labs(
+    title = "Effect of CCR on Overall Score",
+    subtitle = "Holding other predictors at their mean",
+    x = "CCR Weighted",
+    y = "Overall Score"
+  ) +
+  theme_minimal()
+
+```
+
+NEED HELP ANALYZING FURTHER.

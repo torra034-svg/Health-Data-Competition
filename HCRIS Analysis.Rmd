@@ -1,0 +1,134 @@
+---
+title: "HCRIS"
+author: "Patrick Torralba"
+date: "2026-02-04"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+#library
+```{r}
+library(haven)
+library(tidyverse)
+```
+
+#load data
+```{r}
+hcris <- read_dta(file = "C:/Users/Lenovo/Downloads/hcris (1).dta")
+
+hcahps <- read_dta(file = "C:/Users/Lenovo/Downloads/hcahps (1).dta")
+
+
+```
+
+#data cleaning
+```{r hcris}
+hcris1 <- hcris %>% 
+  select(pn, year, ccr_wtd) 
+
+view(hcris1)
+```
+
+```{r hcahps}
+hcahps1 <- hcahps %>% 
+  select(pn, year, overall_score) 
+
+View(hcahps1)
+```
+
+
+#inner join hcris1 to hcahps and analyze ratings
+
+```{r}
+analysis <- inner_join(hcahps1, hcris1, by = c("pn","year")) %>% 
+  filter(!is.na(overall_score) & !is.na(ccr_wtd))
+
+
+view(analysis)
+```
+
+#2016 only | Most recent data & top 
+```{r}
+analysis_recent <- analysis %>% 
+  filter(year >= 2016)
+
+analysis_recent
+```
+
+
+
+# Is there a relationship between overall score and ccr_wtd?
+```{r plot}
+ggplot(analysis_recent, aes(x = ccr_wtd, y = overall_score)) +
+ geom_point() +
+ facet_wrap(~ year) +
+ coord_cartesian(xlim = c(0,2)) + # set coordinate to low value to zoom in
+ labs(x = "Cost to Charge Ratio (weighted)",
+       y = "Overall Score",
+       title = "Figure 1. 2016 - 2021 Cost to Charge Ratio by Overall Score")
+```
+## Just eye-balling, it looks like those hospitals that score high at above a 2.7 can range anywhere between 0.0 to 2.0 on the ccr_wtd
+
+
+
+# What about hospitals that only score above a 2.7?
+```{r data clean}
+analysis_recent_2.7 <- analysis_recent %>% 
+  filter(overall_score >= 2.7)
+
+```
+
+
+```{r plot 2.7+}
+ggplot(analysis_recent_2.7, aes(x = ccr_wtd, y = overall_score)) +
+ geom_point() +
+ facet_wrap(~ year) +
+ coord_cartesian(xlim = c(0,3), ylim = c(2.7,3)) + # set coordinate to low value to zoom in
+ labs(x = "Cost to Charge Ratio (weighted)",
+       y = "Overall Score",
+       title = "Figure 2. 2016 - 2021 Cost to Charge Ratio by High Overall Scores (2.7+)")
+```
+
+Interesting. It looks like based solely on the graphs, we see that the cost to charge ratio is usually less than 1.
+
+
+
+## Is there a statistically significant relationship between the cost charge ratio and high overall scores?
+```{r statistical analysis correlation}
+
+cor <- cor(analysis_recent_2.7$ccr_wtd, analysis_recent_2.7$overall_score)  
+
+cor
+
+```
+
+Interesting!!! Based on the correlation analysis, there is a very low linear relationship between the cost to charge ratio and overall score. Therefore, meaning that hospitals aren't solely tied to spending more money for quality care.
+
+But, before jumping to conclusions, I want to run a linear regression analysis to check there's no relationship
+
+```{r simple linear regression}
+model_1 <- lm(analysis_recent_2.7$overall_score ~ analysis_recent_2.7$ccr_wtd)
+
+summary(model_1)
+```
+
+### Hmmm. Based on these findings (p < 0.05), this model is statistically significant. But, I want to check which other variables in the HCRIS dataset may affect overall score. I suspect these other variables can be confounding this model.
+
+Interesting. I found this paper that discusses which statistically significant hospital characteristics are associated with a hospitals' overall quality star ratings.
+
+The following variables are: 
+
+* nurse communication 
+* staff responsiveness
+* admit decision time
+* aspirin on arrival
+* median time from ED arrival to ED departure
+* pneumonia 30 mortality rate
+* ED patient left without being seen
+
+I'll try and focus on whichever variables I can gather in a separate RMD file.

@@ -1,0 +1,86 @@
+---
+title: "health_data_MLR_analysis"
+author: "Patrick Torralba"
+date: "2026-02-06"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+#library
+```{r}
+library(tidyverse)
+library(haven)
+```
+
+#import data
+```{r}
+hcris <- read_dta(file = "C:/Users/Lenovo/Downloads/hcris (1).dta")
+
+hcahps <- read_dta(file = "C:/Users/Lenovo/Downloads/hcahps (1).dta")
+
+poc <- read_dta(file = "C:/Users/Lenovo/Downloads/poc (1).dta")
+
+mort <- read_dta(file = "C:/Users/Lenovo/Downloads/mortreadm.dta")
+```
+
+#data selection
+```{r hcris}
+hcris <- hcris %>% 
+  select(pn, year, ccr_wtd) 
+
+
+```
+
+```{r hcahps}
+hcahps <- hcahps %>% 
+  select(pn, year, overall_score) 
+
+
+```
+
+```{r mort}
+mort <- mort %>% 
+  select(pn, year, pn_mort_rate)
+```
+
+```{r poc}
+poc <- poc %>% 
+  select(pn, year, ami1_share, ed1_minutes, ed2_minutes, op22_share)
+```
+
+##joining data
+```{r join hchaps and hcris}
+df_h <- inner_join(hcahps, hcris, by = c("pn","year")) %>%
+  filter(!is.na(overall_score) & !is.na(ccr_wtd))
+
+
+```
+
+```{r join mort and poc}
+
+df_m <- full_join(mort, poc, by = c("pn","year"))
+
+```
+
+```{r complete dataset}
+
+df <- full_join(df_h,df_m, by = c("pn","year"))
+
+view(df)
+```
+
+##data cleaning new dataset
+```{r}
+df1 <- df %>% 
+  select(-pn_mort_rate, -ami1_share) %>%  ## I want to focus on predictor variables that I think are significant to the story we are telling
+  filter(!is.na(overall_score) 
+         & !is.na(ed1_minutes) 
+         & !is.na(ed2_minutes) 
+         & !is.na(op22_share))
+
+view(df1)
+```
+

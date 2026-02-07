@@ -9,3 +9,96 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
+#library
+
+```{r library, include=FALSE}
+library(tidyverse)
+library(haven)
+library(car)
+```
+
+#import data
+
+```{r, include=FALSE}
+hcris <- read_dta(file = "C:/Users/Lenovo/Downloads/hcris (1).dta")
+
+hcahps <- read_dta(file = "C:/Users/Lenovo/Downloads/hcahps (1).dta")
+
+poc <- read_dta(file = "C:/Users/Lenovo/Downloads/poc (1).dta")
+
+mort <- read_dta(file = "C:/Users/Lenovo/Downloads/mortreadm.dta")
+```
+
+#data selection
+
+```{r hcris, include=FALSE}
+hcris <- hcris %>% 
+  select(pn, year, ccr_wtd) 
+
+
+```
+
+```{r hcahps, include=FALSE}
+hcahps <- hcahps %>% 
+  select(pn, year, overall_score) 
+
+
+```
+
+```{r mort, include=FALSE}
+mort <- mort %>% 
+  select(pn, year, pn_mort_rate)
+```
+
+```{r poc, include=FALSE}
+poc <- poc %>% 
+  select(pn, year, ami1_share, ed1_minutes, ed2_minutes, op22_share)
+```
+
+##joining data
+
+```{r join hchaps and hcris, include=FALSE}
+df_h <- inner_join(hcahps, hcris, by = c("pn","year")) %>%
+  filter(!is.na(overall_score) & !is.na(ccr_wtd))
+
+
+```
+
+```{r join mort and poc, include=FALSE}
+
+df_m <- full_join(mort, poc, by = c("pn","year"))
+
+```
+
+```{r complete dataset, include=FALSE}
+
+df <- full_join(df_h,df_m, by = c("pn","year"))
+
+```
+
+##data cleaning new dataset
+
+```{r df1}
+df1 <- df %>% 
+  select(-pn_mort_rate, -ami1_share) %>%  ## I want to focus on predictor variables that I think are significant to the story we are telling
+  filter(!is.na(overall_score) 
+         & !is.na(ed1_minutes) 
+         & !is.na(ed2_minutes) 
+         & !is.na(op22_share)) %>% 
+  filter(year >= 2016) # want to get data from last decade
+
+view(df1)
+```
+
+```{r remove orig datasets to save space, include=FALSE}
+rm(df_h, df_m, hcahps, hcris, mort, poc, df)
+```
+
+
+#Meenakshi + Patrick Model
+```{r combined model}
+
+
+model_2 <-lm(data = df1)
+
+```

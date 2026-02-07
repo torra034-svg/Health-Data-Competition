@@ -2,7 +2,9 @@
 title: "health_data_MLR_analysis"
 author: "Patrick Torralba"
 date: "2026-02-06"
-output: html_document
+output:
+  pdf_document: default
+  html_document: default
 ---
 
 ```{r setup, include=FALSE}
@@ -177,4 +179,4 @@ ggplot(df1, aes(x = ccr_wtd, y = overall_score)) +
 
 ```
 
-NEED HELP ANALYZING FURTHER.
+NEED HELP ANALYZING FURTHER.what if I remove ccr_wtd from model?

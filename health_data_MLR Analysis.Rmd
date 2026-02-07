@@ -179,4 +179,6 @@ ggplot(df1, aes(x = ccr_wtd, y = overall_score)) +
 
 ```
 
-NEED HELP ANALYZING FURTHER.what if I remove ccr_wtd from model?
+
+
+
